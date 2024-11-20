@@ -5,6 +5,9 @@ export const runtime = 'edge'
 export async function POST(req: Request) {
   const headers = new Headers();
   headers.append("Access-Control-Allow-Origin", "*");
+  headers.append("Access-Control-Allow-Methods", "POST");
+  headers.append("Content-Type", "application/json");
+  
   try {
     const { message } = await req.json();
 
@@ -16,7 +19,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
 
     // Ensure API key is provided
     if (!apiKey) {
