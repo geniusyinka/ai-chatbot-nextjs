@@ -1,7 +1,8 @@
 "use client"; // Add this line at the top to make it a client component
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
+import ReactMarkdown from "react-markdown";
 
 // Define the message type
 interface Message {
@@ -13,41 +14,52 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+    const [isInfoVisible, setIsInfoVisible] = useState(true);
 
-  const handleSendMessage = async () => {
-    if (inputMessage.trim() === "") return;
+    useEffect(() => {
+      // Toggle the visibility of the info section when messages change
+      if (messages.length > 0) {
+        setIsInfoVisible(false);
+      }
+    }, [messages]);
 
-    const userMessage: Message = { role: "user", content: inputMessage };
-    setMessages([...messages, userMessage]);
-    setInputMessage("");
-    setLoading(true);
+    const preprocessContent = (content: string): string => {
+      // Split content into sentences using regex and join them with line breaks
+      const sentences = content.match(/[^.!?]+[.!?]+/g) || [content];
+      return sentences.join("\n\n"); // Add two newlines between sentences
+    };
 
-    try {
-      const response = await axios.post<{ message: string }>("/api/chat", {
-        message: inputMessage,
-      });
-      const aiMessage: Message = { role: "ai", content: response.data.message };
-
-      setMessages((prevMessages) => [...prevMessages, aiMessage]);
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
+    const handleSendMessage = async () => {
+      if (inputMessage.trim() === "") return; // Do nothing if the input is empty
+    
+      const userMessage: Message = { role: "user", content: inputMessage };
+      setMessages([...messages, userMessage]); // Add user's message to the chat
+      setInputMessage(""); // Clear the input field
+    
+      if (loading) return; // Prevent sending multiple requests while loading
+      setLoading(true); // Set loading state to true
+    
+      try {
+        const response = await axios.post<{ message: string }>("/api/chat", {
+          message: inputMessage, // Send the user's message to the API
+        });
+    
+        const aiMessage: Message = { role: "ai", content: preprocessContent(response.data.message) };
+        setMessages((prevMessages) => [...prevMessages, aiMessage]); // Add AI's response
+      } catch (error: unknown) {
         const errorMessage: Message = {
           role: "ai",
           content:
-            error.response?.data?.message || "Error communicating with AI",
+            axios.isAxiosError(error) && error.response?.data?.message
+              ? error.response.data.message
+              : "An error occurred while communicating with AI.",
         };
-        setMessages((prevMessages) => [...prevMessages, errorMessage]);
-      } else {
-        const errorMessage: Message = {
-          role: "ai",
-          content: "An unknown error occurred",
-        };
-        setMessages((prevMessages) => [...prevMessages, errorMessage]);
+        setMessages((prevMessages) => [...prevMessages, errorMessage]); // Show error message
+      } finally {
+        setLoading(false); // Reset loading state
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    
 
   return (
     <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}>
@@ -57,9 +69,22 @@ export default function Home() {
         </center>
       </div>
 
-      {messages.length === 0 ? (
-        <div className="info" style={{ height: "340px" }}>
-          <div className="info-text" style={{width: '350px', margin: '0 auto', textAlign: 'center'}}>
+ <div
+        style={{
+          transition: "height 0.5s ease", // Smooth height transition
+          height: isInfoVisible ? "340px" : "70vh", // Dynamically adjust height
+          overflow: "scroll", // Prevent content from spilling during transition
+          marginBottom: "20px",
+
+          borderRadius: "8px",
+          padding: "10px",
+        }}
+      >
+        {isInfoVisible ? (
+          <div
+            className="info-text"
+            style={{ width: "350px", margin: "0 auto", textAlign: "center" }}
+          >
             <p>
               This is an open source chatbot template built with Next.js
               deployed on Fleek!
@@ -70,30 +95,47 @@ export default function Home() {
               </b>
             </center>
           </div>
-        </div>
-      ) : (
-        <div className="messages" style={{ height: "400px" }}>
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              style={{
-                textAlign: msg.role === "user" ? "right" : "left",
-                padding: "10px",
-                borderRadius: "5px",
-                margin: "10px 0",
-              }}
-            >
-              {msg.content}
-            </div>
-          ))}
+        ) : (
+          <div className="messages" style={{ overflowY: "auto" }}>
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                style={{
+                  textAlign: msg.role === "user" ? "right" : "left",
+                  padding: "10px",
+                  borderRadius: "5px",
+                  margin: "10px 0",
+                  // backgroundColor: msg.role === "user" ? "#e0e0e0" : "#fff",
+                  color: msg.role === "user" ? "#fff" : "#fff",
+                  
+                }}
+              >
+                {msg.role === "ai" ? (
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                ) : (
+                  
+                    msg.content
+                  
+                )}
+              </div>
+            ))}
 
-          {loading && (
-            <div style={{ textAlign: "center", color: "#555" }}>
-              thinking...
-            </div>
-          )}
-        </div>
-      )}
+            {loading && (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#555",
+                  fontStyle: "italic",
+                }}
+              >
+                Thinking...
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+
 
       <div
         style={{

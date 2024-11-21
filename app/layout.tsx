@@ -15,7 +15,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "AI Chatbot",
-  description: "Built with ❤️ on Fleek",
+  description: "Built with ⚡️ on Fleek",
 };
 
 export default function RootLayout({

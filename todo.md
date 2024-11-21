@@ -1,0 +1,5 @@
+- text styling -- make it markup
+- streaming support
+- add copying text
+- make video
+- limit to 10 queries. 
